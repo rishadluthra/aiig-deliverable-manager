@@ -7,7 +7,7 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "commonjs",
+    "module": "ESNext",
     "target": "es2020",
     "types": [],
     // For nodejs:
@@ -40,6 +40,7 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
+    
 
     "moduleResolution": "node10",
     "esModuleInterop": true,
