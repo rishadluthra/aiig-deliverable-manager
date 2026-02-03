@@ -45,5 +45,12 @@
     "moduleResolution": "node10",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "prisma.config.ts",
+    "prisma/**/*",
+    "dist"
+  ]
 }
