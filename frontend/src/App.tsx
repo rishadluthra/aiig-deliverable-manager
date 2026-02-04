@@ -44,33 +44,43 @@ const getDateRange = (filter: string) => {
 
 // Urgency colors matching those filters
 const urgencyColors = {
-  overdue: "#fee2e2",       // red-200
-  weekly: "#fed7aa",        // orange-300
-  monthly: "#fde68a",       // yellow-300
-  quarterly: "#bbf7d0",     // green-200
-  sixMonths: "#bfdbfe",     // blue-200
-  yearly: "#ddd6fe"         // indigo-200
+  overdue: "#fee2e2", // red-200
+  weekly: "#fed7aa", // orange-300
+  monthly: "#fde68a", // yellow-300
+  quarterly: "#bbf7d0", // green-200
+  sixMonths: "#bfdbfe", // blue-200
+  yearly: "#ddd6fe", // indigo-200
 };
 
 function App() {
   const [allDeliverables, setAllDeliverables] = useState<Deliverable[]>([]);
-  const [filteredDeliverables, setFilteredDeliverables] = useState<Deliverable[]>([]);
+  const [filteredDeliverables, setFilteredDeliverables] = useState<
+    Deliverable[]
+  >([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`${API_BASE}/projects`)
-      .then(res => {
+    axios
+      .get(`${API_BASE}/projects`)
+      .then((res) => {
+        setProjects(res.data);
         const projectIds = res.data.map((p: any) => p.id);
-        return Promise.all(projectIds.map((id: number) =>
-          axios.get(`${API_BASE}/projects/${id}/deliverables`).then(res => res.data)
-        ));
+        return Promise.all(
+          projectIds.map((id: number) =>
+            axios
+              .get(`${API_BASE}/projects/${id}/deliverables`)
+              .then((res) => res.data),
+          ),
+        );
       })
-      .then(results => {
+      .then((results) => {
         const all = results.flat();
         setAllDeliverables(all);
         setFilteredDeliverables(all);
@@ -87,11 +97,18 @@ function App() {
 
     if (search.trim()) {
       const term = search.toLowerCase();
-      filtered = filtered.filter(d =>
-        d.title.toLowerCase().includes(term) ||
-        d.project.name.toLowerCase().includes(term) ||
-        d.manager.toLowerCase().includes(term) ||
-        d.frequency.toLowerCase().includes(term)
+      filtered = filtered.filter(
+        (d) =>
+          d.title.toLowerCase().includes(term) ||
+          d.project.name.toLowerCase().includes(term) ||
+          d.manager.toLowerCase().includes(term) ||
+          d.frequency.toLowerCase().includes(term),
+      );
+    }
+
+    if (projectFilter) {
+      filtered = filtered.filter(
+        (d) => d.project.id.toString() === projectFilter,
       );
     }
 
@@ -107,26 +124,32 @@ function App() {
       rangeEnd = new Date(8640000000000000);
     }
 
-    filtered = filtered.filter(d => {
+    filtered = filtered.filter((d) => {
       const due = new Date(d.dueDate);
       return due >= rangeStart && due <= rangeEnd;
     });
 
-    filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    filtered.sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
+    );
 
     setFilteredDeliverables(filtered);
     setCurrentPage(1);
-  }, [search, allDeliverables, dateFilter]);
+  }, [search, allDeliverables, dateFilter, projectFilter]);
 
   const totalPages = Math.ceil(filteredDeliverables.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentDeliverables = filteredDeliverables.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const currentDeliverables = filteredDeliverables.slice(
+    startIndex,
+    startIndex + ITEMS_PER_PAGE,
+  );
 
   const goToPage = (page: number) => setCurrentPage(page);
-  const nextPage = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
+  const nextPage = () =>
+    currentPage < totalPages && setCurrentPage(currentPage + 1);
   const prevPage = () => currentPage > 1 && setCurrentPage(currentPage - 1);
 
-  // Urgency color logic 
+  // Urgency color logic
   const getUrgencyColor = (dueDate: string) => {
     const now = new Date();
     const due = new Date(dueDate);
@@ -160,9 +183,12 @@ function App() {
       }}
     >
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 40, color: "#334155", margin: 0 }}>AIIG Deliverables</h1>
+        <h1 style={{ fontSize: 40, color: "#334155", margin: 0 }}>
+          AIIG Deliverables
+        </h1>
         <p style={{ color: "#64748b", fontSize: 18, userSelect: "none" }}>
-          Page {currentPage} of {totalPages} • {filteredDeliverables.length} matches
+          Page {currentPage} of {totalPages} • {filteredDeliverables.length}{" "}
+          matches
         </p>
       </header>
 
@@ -195,6 +221,30 @@ function App() {
             maxWidth: 600,
           }}
         />
+
+        <select
+          value={projectFilter}
+          onChange={(e) => setProjectFilter(e.target.value)}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 8,
+            border: "1px solid #cbd5e1",
+            background: "white",
+            cursor: "pointer",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            color: "#334155",
+            fontWeight: 600,
+            fontSize: 15,
+            minWidth: 180,
+          }}
+        >
+          <option value="">All Projects</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id.toString()}>
+              {project.name}
+            </option>
+          ))}
+        </select>
 
         <select
           value={dateFilter}
@@ -323,7 +373,10 @@ function App() {
           <tbody>
             {currentDeliverables.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: 24, textAlign: "center", color: "#64748b" }}>
+                <td
+                  colSpan={5}
+                  style={{ padding: 24, textAlign: "center", color: "#64748b" }}
+                >
                   No deliverables found.
                 </td>
               </tr>
@@ -447,24 +500,37 @@ function App() {
               fontWeight: 600,
               transition: "background-color 0.15s ease",
             }}
-            onMouseEnter={e => {
-              if (currentPage !== 1) e.currentTarget.style.backgroundColor = "#e0e7ff";
+            onMouseEnter={(e) => {
+              if (currentPage !== 1)
+                e.currentTarget.style.backgroundColor = "#e0e7ff";
             }}
-            onMouseLeave={e => {
-              if (currentPage !== 1) e.currentTarget.style.backgroundColor = "white";
+            onMouseLeave={(e) => {
+              if (currentPage !== 1)
+                e.currentTarget.style.backgroundColor = "white";
             }}
           >
             ← Previous
           </button>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", maxWidth: 400, justifyContent: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              maxWidth: 400,
+              justifyContent: "center",
+            }}
+          >
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
               <button
                 key={page}
                 onClick={() => goToPage(page)}
                 style={{
                   padding: "8px 14px",
-                  border: page === currentPage ? "2px solid #3b82f6" : "1px solid #cbd5e1",
+                  border:
+                    page === currentPage
+                      ? "2px solid #3b82f6"
+                      : "1px solid #cbd5e1",
                   borderRadius: 6,
                   background: page === currentPage ? "#3b82f6" : "white",
                   color: page === currentPage ? "white" : "#334155",
@@ -493,11 +559,13 @@ function App() {
               fontWeight: 600,
               transition: "background-color 0.15s ease",
             }}
-            onMouseEnter={e => {
-              if (currentPage !== totalPages) e.currentTarget.style.backgroundColor = "#e0e7ff";
+            onMouseEnter={(e) => {
+              if (currentPage !== totalPages)
+                e.currentTarget.style.backgroundColor = "#e0e7ff";
             }}
-            onMouseLeave={e => {
-              if (currentPage !== totalPages) e.currentTarget.style.backgroundColor = "white";
+            onMouseLeave={(e) => {
+              if (currentPage !== totalPages)
+                e.currentTarget.style.backgroundColor = "white";
             }}
           >
             Next →
