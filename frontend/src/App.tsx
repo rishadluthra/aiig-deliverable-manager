@@ -64,6 +64,15 @@ function App() {
   const [dateFilter, setDateFilter] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [projects, setProjects] = useState<{ id: number; name: string }[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    projectId: "",
+    dueDate: "",
+    frequency: "M",
+    manager: "",
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -137,6 +146,57 @@ function App() {
     setCurrentPage(1);
   }, [search, allDeliverables, dateFilter, projectFilter]);
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (
+      !formData.title.trim() ||
+      !formData.projectId ||
+      !formData.dueDate ||
+      !formData.manager.trim()
+    ) {
+      setError("All fields are required");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await axios.post(
+        `${API_BASE}/projects/${formData.projectId}/deliverables`,
+        {
+          title: formData.title,
+          dueDate: formData.dueDate,
+          frequency: formData.frequency,
+          manager: formData.manager,
+        },
+      );
+
+      const projectIds = projects.map((p) => p.id);
+      const results = await Promise.all(
+        projectIds.map((id) =>
+          axios
+            .get(`${API_BASE}/projects/${id}/deliverables`)
+            .then((res) => res.data),
+        ),
+      );
+      const all = results.flat();
+      setAllDeliverables(all);
+
+      setFormData({
+        title: "",
+        projectId: "",
+        dueDate: "",
+        frequency: "M",
+        manager: "",
+      });
+      setShowAddModal(false);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to add deliverable");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const totalPages = Math.ceil(filteredDeliverables.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const currentDeliverables = filteredDeliverables.slice(
@@ -191,6 +251,24 @@ function App() {
           matches
         </p>
       </header>
+
+      <button
+        onClick={() => setShowAddModal(true)}
+        style={{
+          alignSelf: "flex-start",
+          padding: "12px 24px",
+          background: "#3b82f6",
+          color: "white",
+          border: "none",
+          borderRadius: 12,
+          fontSize: 16,
+          fontWeight: 600,
+          cursor: "pointer",
+          boxShadow: "0 4px 12px rgba(59, 130, 246, 0.3)",
+        }}
+      >
+        Add Deliverable
+      </button>
 
       <div
         style={{
@@ -570,6 +648,250 @@ function App() {
           >
             Next →
           </button>
+        </div>
+      )}
+      {/* Add Deliverable Modal */}
+      {showAddModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 16,
+              padding: 32,
+              maxWidth: 500,
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2
+              style={{ margin: "0 0 24px 0", color: "#334155", fontSize: 28 }}
+            >
+              Add New Deliverable
+            </h2>
+
+            <form
+              onSubmit={handleSubmit}
+              style={{ display: "flex", flexDirection: "column", gap: 20 }}
+            >
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  Title
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) =>
+                    setFormData({ ...formData, title: e.target.value })
+                  }
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    color: "black",
+                    backgroundColor: "white",
+                  }}
+                  placeholder="Enter deliverable title"
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  Project
+                </label>
+                <select
+                  value={formData.projectId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, projectId: e.target.value })
+                  }
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    cursor: "pointer",
+                    color: "black",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <option value="">Select a project</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.dueDate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dueDate: e.target.value })
+                  }
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    cursor: "pointer",
+                    color: "black",
+                    backgroundColor: "white",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  Frequency
+                </label>
+                <select
+                  value={formData.frequency}
+                  onChange={(e) =>
+                    setFormData({ ...formData, frequency: e.target.value })
+                  }
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    cursor: "pointer",
+                    color: "black",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <option value="M">Monthly (M)</option>
+                  <option value="Q">Quarterly (Q)</option>
+                  <option value="SA">Semi-Annually (SA)</option>
+                  <option value="A">Annually (A)</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                    color: "#334155",
+                  }}
+                >
+                  Manager
+                </label>
+                <input
+                  type="text"
+                  value={formData.manager}
+                  onChange={(e) =>
+                    setFormData({ ...formData, manager: e.target.value })
+                  }
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 15,
+                    color: "black",
+                    backgroundColor: "white",
+                  }}
+                  placeholder="Enter manager name"
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    flex: 1,
+                    padding: "12px 24px",
+                    background: saving ? "#94a3b8" : "#3b82f6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: saving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {saving ? "Saving..." : "Add Deliverable"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  disabled={saving}
+                  style={{
+                    flex: 1,
+                    padding: "12px 24px",
+                    background: "white",
+                    color: "#334155",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 8,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: saving ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

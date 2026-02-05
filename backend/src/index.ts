@@ -62,6 +62,42 @@ app.get("/api/projects/:id/deliverables", async (req, res) => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+// Endpoint to create a new deliverable for an existing project
+// Call: POST /api/projects/:id/deliverables
+// Body: {title, dueDate, frequency, manager}
+// Returns: new deliverable object
+app.post("/api/projects/:id/deliverables", async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id);
+    if (isNaN(projectId))
+      return res.status(400).json({ error: "Invalid project ID" });
+
+    const { title, dueDate, frequency, manager } = req.body;
+
+    // Validate required fields
+    if (!title || !dueDate || !frequency || !manager) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Create the deliverable
+    const newDeliverable = await prisma.deliverable.create({
+      data: {
+        title,
+        dueDate: new Date(dueDate),
+        frequency,
+        manager,
+        projectId,
+      },
+      // syntax for Prisma to do a SQL JOIN to include related project data
+      // https://www.prisma.io/docs/orm/prisma-client/queries/relation-queries#examples
+      include: { project: true },
+    });
+
+    res.status(201).json(newDeliverable);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
